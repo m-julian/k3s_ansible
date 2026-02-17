@@ -1,0 +1,19 @@
+- name: Prepare all nodes
+  hosts: k3s
+  gather_facts: false
+  roles:
+    - prepare_nodes
+
+# TODO: add high-availability support
+- name: Install k3s server
+  hosts: servers
+  gather_facts: false
+  roles:
+    - role: k3s_servers
+
+- name: Install k3s agents
+  hosts: servers
+  gather_facts: false
+  roles:
+    - role: k3s_agents
+

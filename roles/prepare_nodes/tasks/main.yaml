@@ -1,0 +1,16 @@
+- name: Disable swap for current session
+  become: true
+  ansible.builtin.command: swapoff -a
+  when:
+    - k3s_disable_swap
+    - ansible_swaptotal_mb > 0
+  changed_when: false
+
+- name: Disable swap permanently
+  become: true
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+    replace: '#\1\2\3swap\4'
+    backup: true
+  when: k3s_disable_swap

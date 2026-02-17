@@ -1,0 +1,50 @@
+# TODO: add high high-availability support
+- name: Download k3s installer
+  become: true
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s_install.sh
+    mode: "0755"
+  when: inventory_hostname == groups['servers'][0]
+
+- name: Install k3s on first server
+  become: true
+  ansible.builtin.command: /tmp/k3s_install.sh
+  args:
+    creates: /usr/local/bin/k3s
+  when: inventory_hostname == groups['servers'][0]
+
+- name: Wait for node to register
+  become: true
+  ansible.builtin.command: kubectl get nodes
+  register: k3s_servers_nodes
+  until: "'{{ inventory_hostname }}' in k3s_servers_nodes.stdout"
+  retries: 10
+  delay: 5
+  changed_when: false
+
+- name: Ensure k3s service is started (first server only)
+  ansible.builtin.systemd:
+    name: k3s
+    state: started
+    enabled: true
+  when: inventory_hostname == groups['k3s_servers'][0]
+
+- name: Wait for token file to exist (first server only)
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+    timeout: 120
+  when: inventory_hostname == groups['k3s_servers'][0]
+
+- name: Read k3s node token (first server only)
+  ansible.builtin.slurp:
+    path: /var/lib/rancher/k3s/server/node-token
+  register: k3s_servers_token_raw
+  no_log: true
+  when: inventory_hostname == groups['k3s_servers'][0]
+
+- name: Store decoded token as a fact on the first server
+  ansible.builtin.set_fact:
+    k3s_servers_token: "{{ k3s_servers_token_raw.content | b64decode | trim }}"
+  no_log: true
+  when: inventory_hostname == groups['k3s_servers'][0]
