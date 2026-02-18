@@ -3,7 +3,7 @@
   ansible.builtin.command: swapoff -a
   when:
     - k3s_disable_swap
-    - ansible_swaptotal_mb > 0
+    - ansible_facts['swaptotal_mb'] | int > 0
   changed_when: false
 
 - name: Disable swap permanently

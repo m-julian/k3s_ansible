@@ -1,6 +1,6 @@
 - name: Prepare all nodes
   hosts: k3s
-  gather_facts: false
+  gather_facts: true
   roles:
     - prepare_nodes
 
@@ -12,7 +12,7 @@
     - role: k3s_servers
 
 - name: Install k3s agents
-  hosts: servers
+  hosts: agents
   gather_facts: false
   roles:
     - role: k3s_agents
