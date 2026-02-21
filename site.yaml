@@ -17,3 +17,8 @@
   roles:
     - role: k3s_agents
 
+- name: Install rancher
+  hosts: servers
+  gather_facts: false
+  roles:
+    - role: rancher_install

@@ -30,11 +30,14 @@
     enabled: true
   when: inventory_hostname == groups['servers'][0]
 
-- name: Make k3s kubeconfig readable for all users
+- name: Set k3s kubeconfig permissions persistently
   become: true
-  ansible.builtin.file:
-    path: /etc/rancher/k3s/k3s.yaml
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml
     mode: "0644"
+    content: |
+      write-kubeconfig-mode: "0644"
+  notify: Restart k3s
 
 - name: Wait for token file to exist (first server only)
   ansible.builtin.wait_for:

@@ -1,0 +1,58 @@
+- name: Install helm on k3s server
+  ansible.builtin.shell: |
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+  when: inventory_hostname == groups['servers'][0]
+
+- name: Check if cert-manager release exists
+  ansible.builtin.command: helm status cert-manager -n cert-manager
+  register: rancher_install_cert_manager_status
+  changed_when: false
+  failed_when: false
+  run_once: true
+  delegate_to: "{{ groups['servers'] | first }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Install cert-manager (first install)
+  ansible.builtin.command: >
+    helm install cert-manager oci://quay.io/jetstack/charts/cert-manager
+    --version v1.19.2
+    --namespace cert-manager
+    --create-namespace
+    --set crds.enabled=true
+  register: rancher_install_cert_manager_install
+  changed_when: true
+  when: rancher_install_cert_manager_status.rc != 0
+  run_once: true
+  delegate_to: "{{ groups['servers'] | first }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Add Rancher repo
+  ansible.builtin.command: helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+  register: rancher_install_repo_add
+  changed_when: "'has been added' in rancher_install_repo_add.stdout or rancher_install_repo_add.rc == 0"
+  when: inventory_hostname == groups['servers'][0]
+
+- name: Check if Rancher release exists
+  ansible.builtin.command: helm status rancher -n cattle-system
+  register: rancher_install_rancher_status
+  failed_when: false
+  changed_when: false
+  when: inventory_hostname == groups['servers'][0]
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Install Rancher (first time)
+  ansible.builtin.command: >
+    helm install rancher rancher-stable/rancher
+    --namespace cattle-system --create-namespace
+    --set hostname={{ rancher_hostname }}
+  when:
+    - inventory_hostname == groups['servers'][0]
+    - rancher_install_rancher_status.rc != 0
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
